@@ -39,8 +39,10 @@ angular.module('myModule', ['ngLocalStorage'])
 ```
 
 ## API
-Internally this module uses browser-ls so any function it exposes is exposed 
-by this Angular service with two small differences.
+Internally this module uses 
+[browser-ls](https://github.com/evanshortiss/browser-local-storage) 
+so any function it exposes is exposed by this Angular service with two small 
+differences.
 
 ### Difference #1
 You must always use the _getAdapter_ function to get an instance as methods 
