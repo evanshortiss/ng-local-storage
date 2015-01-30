@@ -1,6 +1,6 @@
 {
   "name": "ng-local-storage",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "LocalStorage wrapper for AngularJS",
   "scripts": {
     "test": "make test",

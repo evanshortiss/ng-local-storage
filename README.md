@@ -62,9 +62,9 @@ With ng-local-storage the above code becomes:
 
 
 ```javascript
-function doSet(key, val, callback) {
+function doSet(key, val) {
 	// Return the promise!
-	return ls.set(key, val, callback);
+	return ls.set(key, val);
 }
 ```
 
