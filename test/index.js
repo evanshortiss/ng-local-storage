@@ -2,13 +2,13 @@
 
 // Jasmine, Chai and Angular Mocks will be global
 
-var expect = chai.expect;
+var expect = window.chai.expect;
 
 describe('ng-local-storage', function () {
   var $localStorage, $timeout;
 
-  beforeEach(module('ngLocalStorage'));
-  beforeEach(inject(function (_$localStorage_, _$timeout_) {
+  beforeEach(window.module('ngLocalStorage'));
+  beforeEach(window.inject(function (_$localStorage_, _$timeout_) {
     $timeout = _$timeout_;
     $localStorage = _$localStorage_;
   }));

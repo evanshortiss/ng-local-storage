@@ -4,7 +4,9 @@
     "$fh": true,
     "expect": true,
     "it": true,
-    "describe": true
+    "describe": true,
+    "beforeEach": true,
+    "afterEach": true
   },
   "curly": true,
   "camelcase": false,
