@@ -1,6 +1,6 @@
 {
   "name": "ng-local-storage",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "LocalStorage wrapper for AngularJS",
   "scripts": {
     "test": "make test",
@@ -27,6 +27,6 @@
     "url": "git://github.com/evanshortiss/ng-local-storage.git"
   },
   "dependencies": {
-    "browser-ls": "1.2.*"
+    "browser-ls": "1.3.*"
   }
 }
