@@ -6,6 +6,7 @@
   "authors": [
     "Evan Shortiss"
   ],
+  "main": "./dist/ng-local-storage.js",
   "license": "MIT",
   "ignore": [
     "**/.*",
