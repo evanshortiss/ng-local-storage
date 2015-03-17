@@ -3,4 +3,3 @@ node_modules
 fhc-debug.log
 bower_components
 npm-debug.log
-dist/ng-local-storage.js
