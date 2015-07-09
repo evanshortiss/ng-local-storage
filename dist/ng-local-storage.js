@@ -81,8 +81,8 @@ var LS = require('./lib/LocalStorage');
 
 module.exports = new LS();
 
-module.exports.getAdapter = function getAdapter (name) {
-  var adapter = new LS(name);
+module.exports.getAdapter = function getAdapter (params) {
+  var adapter = new LS(params);
 
   return adapter;
 };
@@ -136,18 +136,44 @@ function genStorageKey (ns, key) {
   return (ns === '') ? ns.concat(key) : ns.concat('.').concat(key);
 }
 
+/**
+ * Default drop in for processor hook for pre-save and post-load
+ * @param  {String}   v
+ * @param  {Function} callback
+ */
+function defProcessor (v, callback) {
+  callback(null, v);
+}
+
 
 /**
  * Class used to provide a wrapper over localStorage
  * @param {String} [ns] Optional namespace for the adpater.
  */
-function LocalStorage (ns) {
+function LocalStorage (params) {
   events.EventEmitter.call(this);
 
-  this.ns = ns || '';
+  if (!params || typeof params === 'string') {
+    params = {
+      ns: params || ''
+    };
+  }
+
+  this.ns = params.ns || '';
 
   if (typeof this.ns !== 'string') {
     throw new Error('Namespace must be a string.');
+  }
+
+  this.preSave = params.preSave || defProcessor;
+  this.postLoad = params.postLoad || defProcessor;
+
+  if (this.preSave && typeof this.preSave !== 'function') {
+    throw new Error('preSave option must be a function');
+  }
+
+  if (this.postLoad && typeof this.postLoad !== 'function') {
+    throw new Error('postLoad option must be a function');
   }
 
   this.EVENTS = EVENTS;
@@ -191,15 +217,22 @@ LocalStorage.prototype.getKeys = function () {
  */
 LocalStorage.prototype.set = function (key, value, callback) {
   callback = wrapCallback(callback);
+  var self = this;
 
-  try {
-    ls.setItem(genStorageKey(this.getNs(), key), value);
-    callback(null, null);
-    this.emit(EVENTS.SET, key, value);
-  } catch (e) {
-    callback(e, null);
-    this.emit(EVENTS.SET_FAILED, key, value);
-  }
+  this.preSave(value, function (err, newVal) {
+    if (err) {
+      callback(err, null);
+    } else {
+      try {
+        ls.setItem(genStorageKey(self.getNs(), key), newVal);
+        callback(null, null);
+        self.emit(EVENTS.SET, key, value, newVal);
+      } catch (e) {
+        callback(e, null);
+        self.emit(EVENTS.SET_FAILED, key, value, newVal);
+      }
+    }
+  });
 };
 
 
@@ -233,14 +266,19 @@ LocalStorage.prototype.setJson = function (key, json, callback) {
 LocalStorage.prototype.get = function (key, callback, silent) {
   callback = wrapCallback(callback);
 
+  var self = this;
+
   // Pretty sure this doesn't throw, but let's be careful...
   try {
     var item = ls.getItem(genStorageKey(this.getNs(), key));
-    callback(null, item);
 
-    if (!silent) {
-      this.emit(EVENTS.GET, key, item);
-    }
+    this.postLoad(item, function (err, newVal) {
+      callback(err, newVal);
+
+      if (!silent) {
+        self.emit(EVENTS.GET, key, item, newVal);
+      }
+    });
   } catch (e) {
     if (!silent) {
       this.emit(EVENTS.GET_FAILED, key);
@@ -255,7 +293,11 @@ LocalStorage.prototype.get = function (key, callback, silent) {
  * @param  {Function} callback
  */
 LocalStorage.prototype.clear = function (callback) {
-  async.eachSeries(this.getKeys(), this.remove.bind(this), function (err) {
+  var self = this;
+
+  async.eachSeries(this.getKeys(), function (k, cb) {
+    self.remove(k, cb);
+  }, function (err) {
     // Ensure error passed is null to keep with standards
     callback(err || null, null);
   });
@@ -358,9 +400,6 @@ LocalStorage.prototype.remove = function (key, callback) {
     };
 
     var _each = function (arr, iterator) {
-        if (arr.forEach) {
-            return arr.forEach(iterator);
-        }
         for (var i = 0; i < arr.length; i += 1) {
             iterator(arr[i], i, arr);
         }
@@ -1137,23 +1176,26 @@ LocalStorage.prototype.remove = function (key, callback) {
             pause: function () {
                 if (q.paused === true) { return; }
                 q.paused = true;
-                q.process();
             },
             resume: function () {
                 if (q.paused === false) { return; }
                 q.paused = false;
-                q.process();
+                // Need to call q.process once per concurrent
+                // worker to preserve full concurrency after pause
+                for (var w = 1; w <= q.concurrency; w++) {
+                    async.setImmediate(q.process);
+                }
             }
         };
         return q;
     };
-    
+
     async.priorityQueue = function (worker, concurrency) {
-        
+
         function _compareTasks(a, b){
           return a.priority - b.priority;
         };
-        
+
         function _binarySearch(sequence, item, compare) {
           var beg = -1,
               end = sequence.length - 1;
@@ -1167,7 +1209,7 @@ LocalStorage.prototype.remove = function (key, callback) {
           }
           return beg;
         }
-        
+
         function _insert(q, data, priority, callback) {
           if (!q.started){
             q.started = true;
@@ -1189,7 +1231,7 @@ LocalStorage.prototype.remove = function (key, callback) {
                   priority: priority,
                   callback: typeof callback === 'function' ? callback : null
               };
-              
+
               q.tasks.splice(_binarySearch(q.tasks, item, _compareTasks) + 1, 0, item);
 
               if (q.saturated && q.tasks.length === q.concurrency) {
@@ -1198,15 +1240,15 @@ LocalStorage.prototype.remove = function (key, callback) {
               async.setImmediate(q.process);
           });
         }
-        
+
         // Start with a normal queue
         var q = async.queue(worker, concurrency);
-        
+
         // Override push to accept second parameter representing priority
         q.push = function (data, priority, callback) {
           _insert(q, data, priority, callback);
         };
-        
+
         // Remove unshift function
         delete q.unshift;
 
